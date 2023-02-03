@@ -1,3 +1,6 @@
+"""
+LDA_DIST.py -profiling 1500000 -attack 100
+"""
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import argparse
