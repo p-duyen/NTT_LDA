@@ -1,6 +1,7 @@
 """
-LDA_DIST.py -profiling 1500000 -attack 100
+Usage example: LDA_DIST.py -profiling 1500000 -attack 100
 """
+
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import argparse
@@ -31,8 +32,8 @@ def gen_data(s_num, states, profiling=True):
             x_0 = np.random.randint(0, q, (batch_size, 256), dtype=np.int16)
             x_1 = (st - x_0)%q
 
-            L0 = HW(x_0) + np.random.normal(0, 0.1, (batch_size, 256))
-            L1 = HW(x_1) + np.random.normal(0, 0.1, (batch_size, 256))
+            L0 = HW(x_0) + np.random.normal(0, 0.5, (batch_size, 256))
+            L1 = HW(x_1) + np.random.normal(0, 0.5, (batch_size, 256))
             # L = np.concatenate((L0, L1), axis=1)
             L = L0*L1
             data['traces'] = L
@@ -47,8 +48,8 @@ def gen_data(s_num, states, profiling=True):
         x_0 = np.random.randint(0, q, (s_num, 256), dtype=np.int16)
         x_1 = (st - x_0)%q
 
-        L0 = HW(x_0) + np.random.normal(0, 0.1, (s_num, 256))
-        L1 = HW(x_1) + np.random.normal(0, 0.1, (s_num, 256))
+        L0 = HW(x_0) + np.random.normal(0, 0.5, (s_num, 256))
+        L1 = HW(x_1) + np.random.normal(0, 0.5, (s_num, 256))
         # L = np.concatenate((L0, L1), axis=1)
         L = L0*L1
         data['traces'] = L
@@ -87,6 +88,6 @@ if __name__ == '__main__':
     a_size = args.attack
     q = 3329
     batch_size = 50000
-    states = gen_data(p_size,states=None, profiling=True)
+    states = gen_data(p_size, states=None, profiling=True)
     clf = profiling(p_size)
     attack(a_size, states, clf)
