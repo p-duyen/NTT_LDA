@@ -25,7 +25,6 @@ def profiling(data):
     labels = data['labels']
     traces = data['traces']
     clf = LDA().fit(traces, labels)
-    print(f"new shape: {clf.transform(traces).shape}")
     return clf
 def attack(data, clf):
     labels = data['labels']
@@ -38,10 +37,7 @@ def HW(x):
     fcount = np.vectorize(np.char.count)
     hw = np.array([fcount(xi, '1') for xi in bin_x])
     return hw
-def gen_data_m(states, n_samples, q, noise=0.1):
-    """
-    L = HW(r)||HW((r-key)modq)
-    """
+def gen_data_m(states, n_samples, q, n_random=3, noise=0.1):
     data = {}
     dim = states.shape[1]
     labels = np.concatenate((np.ones((n_samples + n_samples%2)//2, dtype=np.int16), np.zeros((n_samples-(n_samples + n_samples%2)//2), dtype=np.int16)), axis=0)
@@ -51,8 +47,9 @@ def gen_data_m(states, n_samples, q, noise=0.1):
     x1 = (sts - x0)%q
     L0 = HW(x0) + np.random.normal(0, noise, (n_samples, dim))
     L1 = HW(x1) + np.random.normal(0, noise, (n_samples, dim))
-
-    L = np.concatenate((L0, L1), axis=1)
+    # L = np.concatenate((L0, L1), axis=1)
+    L = L0*L1
+    L = np.hstack([L, np.random.randn(n_samples, n_random)])
     data['labels'] = labels
     data['traces'] = L
     return data
@@ -61,8 +58,9 @@ def gen_data_m(states, n_samples, q, noise=0.1):
 if __name__ == '__main__':
     # L = HW(r)||HW((r-key)mod q)
 
-    states = np.array([[1], [3]])
+    states = np.array([[1, 4], [3, 5]])
     p_data = gen_data_m(states, n_samples=50000, q=5)
+    print(p_data['traces'].shape)
     clf = profiling(p_data)
     a_data = gen_data_m(states, n_samples=100, q=5)
     attack(a_data, clf)
