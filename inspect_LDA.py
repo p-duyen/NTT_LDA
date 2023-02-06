@@ -99,6 +99,16 @@ if __name__ == '__main__':
     X_lda = X.dot(W)
     print("X", X_lda[y==0, 0].shape)
     Y = np.arange(5000)
+<<<<<<< HEAD
+=======
+    # plt.scatter(Y, X_lda[y==0, 0], color = 'hotpink')
+    # plt.scatter(Y, X_lda[y==1, 0], color = '#88c999')
+    # for label,marker,color in zip(np.unique(y),('^', 's'),('blue', 'red')):
+    #     print(label)
+        # plt.scatter(X_lda[y==label, 0], X_lda[y==label, 1],
+        #         color=color, marker=marker)
+    # plt.show()
+>>>>>>> e32402e5d4077ee9ab12cb54c717a45c012a46cb
     for label,marker,color in zip(np.unique(y),('^', 's'),('blue', 'red')):
         plt.scatter(Y, X_lda[y==label, 0], color = color, marker=marker)
     plt.show()
