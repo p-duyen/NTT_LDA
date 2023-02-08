@@ -1,5 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from tqdm import tqdm, trange
+import pickle
 
 def comp_mean_vectors(X, y):
     class_labels = np.unique(y)
@@ -39,7 +41,8 @@ def get_components(eig_vals, eig_vecs, n_comp=2):
     n_features = X.shape[1]
     eig_pairs = [(np.abs(eig_vals[i]), eig_vecs[:,i]) for i in range(len(eig_vals))]
     eig_pairs = sorted(eig_pairs, key=lambda k: k[0], reverse=True)
-    W = np.hstack([eig_pairs[i][1].reshape(4, 1) for i in range(0, n_comp)])
+    # print(eig_pairs[0][1].shape[0])
+    W = np.hstack([eig_pairs[i][1].reshape(n_features, 1) for i in range(0, n_comp)])
     return W
 def gen_data_m(states, n_random, n_samples, q, noise=0.1):
     data = {}
@@ -49,6 +52,23 @@ def gen_data_m(states, n_random, n_samples, q, noise=0.1):
     sts = states[labels]
     x0 = np.random.randint(0, q, size=(n_samples, dim))
     x1 = (sts - x0)%q
+    L0 = HW(x0) + np.random.normal(0, noise, (n_samples, dim))
+    L1 = HW(x1) + np.random.normal(0, noise, (n_samples, dim))
+    # L = np.concatenate((L0, L1), axis=1)
+    L = L0*L1
+    L = np.hstack([L, np.random.randn(n_samples, n_random)])
+    data['labels'] = labels
+    data['traces'] = L
+    return data
+
+def gen_data_mb(states, n_random, n_samples, q, noise=0.1):
+    data = {}
+    dim = states.shape[1]
+    labels = np.concatenate((np.ones((n_samples + n_samples%2)//2, dtype=np.int16), np.zeros((n_samples-(n_samples + n_samples%2)//2), dtype=np.int16)), axis=0)
+    np.random.shuffle(labels)
+    sts = states[labels]
+    x0 = np.random.randint(0, q, size=(n_samples, dim))
+    x1 = sts^x0
     L0 = HW(x0) + np.random.normal(0, noise, (n_samples, dim))
     L1 = HW(x1) + np.random.normal(0, noise, (n_samples, dim))
     # L = np.concatenate((L0, L1), axis=1)
@@ -78,27 +98,88 @@ def HW(x):
     fcount = np.vectorize(np.char.count)
     hw = np.array([fcount(xi, '1') for xi in bin_x])
     return hw
+def project(X, y):
+    dim = X.shape[1]
+    means = comp_mean_vectors(X, y)
+    Sw = scatter_within(X, y)
+    Sb = scatter_between(X, y)
+    eig_vals, eig_vecs = np.linalg.eig(np.linalg.inv(Sw).dot(Sb))
+    W = get_components(eig_vals, eig_vecs, n_comp=dim)
+    X_lda = X.dot(W)
+    classes = {}
+    for i in range(dim):
+        classes[f"{i}"] = X_lda[y==i]
+    return classes
+
 if __name__ == '__main__':
-    states = np.array([[1], [3]])
+    # q = 7
+    # N_SAMPLES = 5000
+    # with open("states_2.npy", "rb") as f:
+    #     states_set = np.load(f)
+    # data_dump = {}
+    # data_dump['states'] = []
+    # data_dump['traces'] = []
+    # data_dump['labels'] = []
+    # c0 = []
+    # c1 = []
+    # with trange(states_set.shape[0]) as t:
+    #     for i in t:
+    #         states_pair = states_set[i]
+    #         p_data = gen_data_m(states_pair, n_random=0,  n_samples=N_SAMPLES, q=q)
+    #         X = p_data['traces']
+    #         y = p_data['labels']
+    #         data_dump['states'].append(states_pair)
+    #         data_dump['traces'].append(X)
+    #         data_dump['labels'].append(y)
+    #         projection = project(X, y)
+    #         c0.append(projection["0"])
+    #         c1.append(projection["1"])
+    # with open(f"data_dump_{q}_{N_SAMPLES}_2.pkl", "wb") as fd:
+    #     pickle.dump(data_dump, fd)
+    # c_0 = np.array(c0)
+    # c_1 = np.array(c1)
+    # plt.scatter(c_0[:, 0], c_0[:, 1], color='red', label=0)
+    # plt.scatter(c_1[:, 0], c_1[:, 1], color='blue', label=1)
+    # plt.legend()
+    # plt.show()
+
+# with open(f"{q}_{N_SAMPLES}_dim2.pkl", "wb") as fd:
+#     pickle.dump(data_dump, fd)
+
+
+
+
+    q = 7
+    N_SAMPLES = 20000
+    states = np.array([[2, 3], [2, 2]])
     states = HW(states)
-    # p_data = gen_data(states, n_random=3, n_samples=1000, noise=0.1)
-    p_data = gen_data_m(states, n_random=3,  n_samples=10000, q=5)
+    p_data = gen_data(states, n_random=2, n_samples=N_SAMPLES, noise=0.1)
+    # p_data = gen_data_m(states, n_random=1,  n_samples=N_SAMPLES, q=q)
     X = p_data['traces']
     y = p_data['labels']
     means = comp_mean_vectors(X, y)
-    print(means)
+    print(f"means: {means}")
     Sw = scatter_within(X, y)
     Sb = scatter_between(X, y)
-    print(Sw)
-    print(Sb)
+    print(f"Sw: {Sw}")
+    print(f"Sb: {Sb}")
     print(np.linalg.inv(Sw).dot(Sb))
     eig_vals, eig_vecs = np.linalg.eig(np.linalg.inv(Sw).dot(Sb))
-    print('EigVals: %s\n\nEigVecs: %s' % (eig_vals, eig_vecs))
-    W = get_components(eig_vals, eig_vecs, n_comp=1)
-    print(W.shape)
-    X_lda = X.dot(W)
-    print("X", X_lda[y==0, 0].shape)
-    Y = np.arange(5000)
-    for label,marker,color in zip(np.unique(y),('^', 's'),('blue', 'red')):
-        plt.scatter(Y, X_lda[y==label, 0], color = color, marker=marker)
+    print('EigVals: %s\n\nEigVecs: %s====' % (eig_vals, eig_vecs))
+    W = get_components(eig_vals, eig_vecs, n_comp=2)
+    print(W)
+
+    ax = plt.gca()
+    print(X_lda.shape)
+    print(X_lda[y == 0].shape)
+    plt.scatter(X_lda[y == 0][:, 0], X_lda[y == 0][:, 1], color='red')
+    plt.scatter(X_lda[y == 1][:, 0], X_lda[y == 1][:, 1], color='blue')
     plt.show()
+    ax.set_xlim([xmin, xmax])
+    ax.set_ylim([-1, 1])
+    Y = [np.ones((N_SAMPLES//2, 1))*0.05, np.ones((N_SAMPLES//2, 1))*(-0.05)]
+    for label,marker,color in zip(np.unique(y),('^', 's'),('blue', 'red')):
+        a = 1-(label*0.9)
+        plt.scatter(X_lda[y==label, 0], X_lda[y==label, 1], color = color, marker=marker, alpha=1)
+    plt.show()
+    plt.savefig(f"LDA_{q}_{N_SAMPLES}.png")

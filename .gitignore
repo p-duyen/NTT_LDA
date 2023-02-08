@@ -1,1 +1,5 @@
 LDA_DIST_.py
+.ipynb_checkpoints
+LDA_small.ipynb
+*.pkl
+*.png

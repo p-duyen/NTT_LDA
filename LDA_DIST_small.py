@@ -1,4 +1,7 @@
-from __future__ import division
+import pickle as pkl
+from tqdm import tqdm, trange
+from random import random, randint
+from time import sleep
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,7 +32,9 @@ def profiling(data):
 def attack(data, clf):
     labels = data['labels']
     traces = data['traces']
-    print(f"SCORE: {clf.score(traces, labels)}")
+    score = clf.score(traces, labels)
+    # print(f"SCORE: {score}")
+    return score
 
 def HW(x):
     fbin = np.vectorize(np.binary_repr)
@@ -49,22 +54,57 @@ def gen_data_m(states, n_samples, q, n_random=3, noise=0.1):
     L1 = HW(x1) + np.random.normal(0, noise, (n_samples, dim))
     # L = np.concatenate((L0, L1), axis=1)
     L = L0*L1
-    L = np.hstack([L, np.random.randn(n_samples, n_random)])
+    # L = np.hstack([L, np.random.randn(n_samples, n_random)])
     data['labels'] = labels
     data['traces'] = L
     return data
 
 
 if __name__ == '__main__':
-    # L = HW(r)||HW((r-key)mod q)
+    # states_ = []
+    # for i in range(-2, 3):
+    #     for j in range(-2, 3):
+    #         for t in range(-2, 3):
+    #             for s in range(-2, 3):
+    #                 states = np.array([i, j, t, s]).reshape((2, 2))
+    #                 states_.append(states)
+    # states_ = np.array(states_)
+    # with open("states_2.npy", "wb") as f:
+    #     np.save(f, states_)
+    with open("states_2.npy", "rb") as f:
+        states_set = np.load(f)
+    # print(states_set.shape)
+    q = 19
+    n_profilings = [1000]
+    n_attack = 1000
+    for n_profiling in n_profilings:
+        sum = {}
+        sum['states'] =  []
+        sum['scores'] = []
+        with trange(states_set.shape[0]) as t:
+            for i in t:
+                states_pair = states_set[i]
+                t.set_description(f'Process {n_profiling}')
+                sum['states'].append(states_pair)
+                p_data = gen_data_m(states_pair, n_samples=n_profiling, q=q)
+                # print(p_data['traces'].shape)
+                clf = profiling(p_data)
+                a_data = gen_data_m(states_pair, n_samples=n_attack, q=q)
+                score = attack(a_data, clf)
+                sum['scores'].append(score)
+                # t.update()
+        # with open(f"sum_{q}_{n_profiling}.pkl", "wb") as f:
+        #     pkl.dump(sum, f)
 
-    states = np.array([[1, 4], [3, 5]])
-    p_data = gen_data_m(states, n_samples=50000, q=5)
-    print(p_data['traces'].shape)
-    clf = profiling(p_data)
-    a_data = gen_data_m(states, n_samples=100, q=5)
-    attack(a_data, clf)
-
+    # for i in tqdm(range(0, batch_num), desc ="Generating"):
+    # for states_pair, i in enumerate(states_set):
+    #     sum['states'][i] = states_pair
+    #     p_data = gen_data_m(states_pair, n_samples=n_profiling, q=q)
+    #     clf = profiling(p_data)
+    #     a_data = gen_data_m(states_pair, n_samples=n_attack, q=q)
+    #     sum['scores'][i] = (attack(a_data, clf))
+    # with open("sum_2.pkl", "wb") as f:
+    #     pkl.dump(f, sum)
     #L = HW(key)||randoms
 
     # states = np.array([[1], [5], [6]])
@@ -78,3 +118,23 @@ if __name__ == '__main__':
     # a_data = gen_data(states, n_random=3, n_samples=100, noise=0.1)
     # print("=================================ATTACKING============================")
     # attack(a_data, clf)
+    # pbar = tqdm(["a", "b", "c", "d"])
+    # for char in pbar:
+    #     sleep(0.25)
+    #     pbar.set_description("Processing %s" % char)
+    #     print(char)
+    # with trange(10) as t:
+    #     for i in t:
+    #         # Description will be displayed on the left
+    #         t.set_description('GEN %i' % i)
+    #         # Postfix will be displayed on the right,
+    #         # formatted automatically based on argument's datatype
+    #         t.set_postfix(loss=random(), gen=randint(1,999), str='h',
+    #                       lst=[1, 2])
+    #         sleep(0.1)
+    # with tqdm(total=10, bar_format="{postfix[0]} {postfix[1][value]:>8.2g}",
+    #       postfix=["Batch", dict(value=0)]) as t:
+    #     for i in range(10):
+    #         sleep(0.1)
+    #         t.postfix[1]["value"] = i / 2
+    #         t.update()
