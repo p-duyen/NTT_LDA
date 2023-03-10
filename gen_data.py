@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 import pdb
 from tqdm import tqdm, trange
 import pickle
+import math
 # pdb.set_trace()
 
 def count_1(x):
@@ -45,9 +46,12 @@ def gen_bm(batch_size, states_pair, base=2**8):
     L = L.astype(np.int16)
     # [print(f"labels:{labels[i]}, state:{sts[i]}, rand: {r[i]}, masked: {msts[i]}, L0:{L0[i]}, L1:{L1[i]}, L: {L[i]} ") for i in range(batch_size)]
     return labels, L
-def gen_am(batch_size, states_pair, q=3329, noise=0.5):
-    labels = np.concatenate((np.ones((batch_size + batch_size%2)//2, dtype=np.uint16), np.zeros((batch_size-(batch_size + batch_size%2)//2), dtype=np.uint16)), axis=0)
-    np.random.shuffle(labels)
+def gen_am(batch_size, states_pair, select_state=None, q=3329, noise=0.5, n_random=0, perm=None):
+    if select_state != None:
+        labels = np.ones((batch_size, ), dtype=np.uint16)*select_state
+    else:
+        labels = np.concatenate((np.ones((batch_size + batch_size%2)//2, dtype=np.uint16), np.zeros((batch_size-(batch_size + batch_size%2)//2), dtype=np.uint16)), axis=0)
+        np.random.shuffle(labels)
     sts = states_pair[labels]
     dim = states_pair.shape[1]
     r = np.random.randint(0, q, (batch_size, dim), dtype=np.uint16)
@@ -55,9 +59,49 @@ def gen_am(batch_size, states_pair, q=3329, noise=0.5):
     L0 = HW(r) + np.random.normal(0, noise, (batch_size, dim))
     L1 = HW(msts) + np.random.normal(0, noise, (batch_size, dim))
     L = L0*L1
-    # L = L.astype(np.int16)
-    # [print(f"labels:{labels[i]}, state:{sts[i]}, rand: {r[i]}, masked: {msts[i]}, L0:{L0[i]}, L1:{L1[i]}, L: {L[i]} ") for i in range(batch_size)]
+    if n_random:
+        rand_samples =  np.random.randint(0, math.log(q, 2)**2, (batch_size, n_random))
+        rand_samples = rand_samples + np.random.normal(0, noise, (batch_size, n_random ))
+        L = np.column_stack((L, rand_samples))
+        # print(L)
+        if perm:
+            rng = np.random.default_rng(19680801)
+            L = rng.permutation(L, axis=1)
     return labels, L
+
+def gen_am_(batch_size, states_pair, select_state=None, q=3329, noise=0.5, n_random=0, perm=None, comf=None):
+    if select_state != None:
+        labels = np.ones((batch_size, ), dtype=np.uint16)*select_state
+    else:
+        labels = np.concatenate((np.ones((batch_size + batch_size%2)//2, dtype=np.uint16), np.zeros((batch_size-(batch_size + batch_size%2)//2), dtype=np.uint16)), axis=0)
+        np.random.shuffle(labels)
+    sts = states_pair[labels]
+    dim = states_pair.shape[1]
+    r = np.random.randint(0, q, (batch_size, dim), dtype=np.uint16)
+    msts = (sts - r)%q
+    L0 = HW(r) + np.random.normal(0, noise, (batch_size, dim))
+    L1 = HW(msts) + np.random.normal(0, noise, (batch_size, dim))
+    if comf == "abs_diff":
+        L = np.absolute(L0-L1)
+    elif comf == "sum":
+        L = L0 + L1
+    if n_random:
+        rand_samples =  np.random.randint(0, math.log(q, 2)**2, (batch_size,))
+        rand_samples = rand_samples + np.random.normal(0, noise, (batch_size, ))
+        L = np.column_stack((L, rand_samples))
+        if perm:
+            rng = np.random.default_rng(19680801)
+            L = rng.permutation(L, axis=1)
+    return labels, L
+
+def unprotected_gen(batch_size, states_pair, q=3329, noise=0):
+    labels = np.concatenate((np.ones((batch_size + batch_size%2)//2, dtype=np.uint16), np.zeros((batch_size-(batch_size + batch_size%2)//2), dtype=np.uint16)), axis=0)
+    np.random.shuffle(labels)
+    sts = states_pair[labels]
+    dim = states_pair.shape[1]
+    L = HW(sts) + np.random.normal(0, noise, (batch_size, dim))
+    return labels, L
+
 def gen_states():
     state_range = np.arange(0, 256)
     states_set = []
@@ -98,14 +142,108 @@ def run_lda(states_pair, batch_size, noise):
     score = clf.score(a_traces, a_labels)
     return score
 
-if __name__ == '__main__':
+def gen_shares(batch_size, states_pair_batch, dim, n_order=2, q=3329):
+    shares_var = {f"X_{i}":  np.random.randint(0, q, (batch_size, dim), dtype=np.uint16) for i in range(n_order - 1)}
+    shares_var_array = np.array(list(shares_var.values()))
+    masked_var = (states_pair_batch - shares_var_array.sum(axis=0))%q
+    shares_val = np.append(shares_var_array, [masked_var], axis=0)
+    return shares_val
+
+
+def gen_am_ho(batch_size, states_pair, n_order=2, select_state=None, q=3329, noise=0.5, n_random=0, perm=None, comf=None):
+    if select_state != None:
+        labels = np.ones((batch_size, ), dtype=np.uint16)*select_state
+    else:
+        labels = np.concatenate((np.ones((batch_size + batch_size%2)//2, dtype=np.uint16), np.zeros((batch_size-(batch_size + batch_size%2)//2), dtype=np.uint16)), axis=0)
+        np.random.shuffle(labels)
+    states_pair_batch = states_pair[labels]
+    dim = states_pair.shape[1]
+    shares_val = gen_shares(batch_size, states_pair_batch, dim, n_order, q)
+    # shares_leakage_ = {f"L_{i}": HW(share_val) for i, share_val in enumerate(shares_val)}
+    shares_leakage = {f"L_{i}": HW(share_val) + np.random.normal(0, noise, (batch_size, dim)) for i, share_val in enumerate(shares_val)}
+    leakage = np.array(list(shares_leakage.values()))
+    norm_leakage = leakage - np.mean(leakage, axis=1, keepdims=True)
+    # print(f"mean leakage: {np.mean(leakage, axis=1, keepdims=True), np.mean(leakage, axis=1, keepdims=True).shape}")
+    if comf == "sum":
+        L = leakage.sum(axis=0)
+    elif comf == "prod":
+        L = leakage.prod(axis=0)
+    elif comf == "norm_prod":
+        L = norm_leakage.prod(axis=0)
+        # L_ = leakage_.prod(axis=0)
+    elif comf == "abs_diff" and n_order == 2:
+        L = np.absolute(leakage[0] - leakage[1])
+    else:
+        return labels, leakage
+    # for i in range(batch_size):
+    #     print(f"states: {states_pair_batch[i]}, share 1: {shares_val[0][i]}, leak: {leakage_[0][i]}, share 2: {shares_val[1][i]}, leak: {leakage_[1][i]}, share 3: {shares_val[2][i]}, leak: {leakage_[2][i]}, L: {L[i]}, L_:{L_[i]}")
+    return labels, L
+
+
+
+# def uni_test():
+#     batch_size = 5
+#     dim = 2
+#     noise = 0.1
+#     st0 = np.random.randint(-2, 3, (dim, 1))
+#     st1 = np.random.randint(-2, 3, (dim, 1))
+#     states_pair = np.hstack((st0, st1)).T
+#     labels, traces = gen_am_ho(batch_size, states_pair, n_order=3, select_state=None, q=3329, noise=0.1, n_random=0, perm=None, comf="norm_prod")
+
+
+def ho_LDA():
+    comf = "norm_prod"
+    n_order = 3
     batch_size = 50000
-    dim = 2
-    q = 13
+    # n_attack = 1000
+    dim = 256
+    q = 3329
+    n_random = 10000
+    noises = [10]
+    n_query = 800
+    st0 = np.random.randint(-2, 3, (dim, 1))
+    st1 = np.random.randint(-2, 3, (dim, 1))
+    states_pair = np.hstack((st0, st1)).T
+    with trange(len(noises)) as t:
+        for i in t:
+            noise = noises[i]
+            labels, traces = gen_am_ho(batch_size, states_pair, n_order=n_order, select_state=None, q=q, noise=noise, comf=comf)
+            clf = lda()
+            clf.fit(traces, labels)
+            scores = []
+            for n in range(100, n_query, 100):
+                acc = 0
+                for i in range(1000):
+                    t.set_description(f'Process {noise}, n querry: {n}, time {i}')
+                    correct_state = np.random.randint(0, 2)
+                    a_labels, a_traces = gen_am_ho(n, states_pair, n_order=n_order, select_state=correct_state, q=q, noise=noise, comf=comf)
+                    preds_proba = clf.predict_log_proba(a_traces)
+                    pred_state = np.argmax(np.sum(preds_proba, axis=0))
+                    if pred_state == correct_state:
+                        acc += 1
+                scores.append(acc/1000)
+            plt.plot(np.arange(100, n_query, 100), scores, label=f"{noise}")
+    plt.legend()
+    plt.xlabel("No. queries")
+    plt.ylabel("success rate")
+    plt.title(f"{comf} {n_order} shares")
+    plt.show()
+
+if __name__ == '__main__':
+    # uni_test()
+    # ho_LDA()
+
+
+    # batch_size = 50000
+    # dim = 256
+    # q = 3329
+    # n_random = 1000
+    # noises = [0.1, 0.5, 1.5]
+    # uni_test()
 
     #Boolean mask
-    st0 = np.array([255])
-    st1 = np.array([0])
+    # st0 = np.array([255])
+    # st1 = np.array([0])
     # st0 = np.random.randint(0, 256, (1, ))
     # st1 = np.random.randint(0, 256, (1, ))
     # states_pair = np.vstack((st0, st1))
@@ -119,20 +257,76 @@ if __name__ == '__main__':
     # plt.show()
 
     #Arith mask
-    # st0 = np.ones((dim, 1))*(-2)
+    # st0 = np.zeros((dim, 1))
     # st1 = np.zeros((dim, 1))
-    # st0 = np.random.randint(-2, 3, (dim, 1))
-    # st1 = np.random.randint(-2, 3, (dim, 1))
+    # st1[-1] = 1
+    # # st0 = np.random.randint(-2, 3, (dim, 1))
+    # # st1 = np.random.randint(-2, 3, (dim, 1))
     # states_pair = np.hstack((st0, st1)).T
-    # labels, traces = gen_am(batch_size, states_pair, q=q, noise=0)
-    # clf = lda()
-    # clf.fit(traces, labels)
-    # a_labels, a_traces = gen_am(1000, states_pair, q=q, noise=0)
-    # print(clf.score(a_traces, a_labels))
-    # plot_(traces, labels, states_pair, alpha=0.1, des="")
+    # # labels, traces = gen_am(2, states_pair, q=q, noise=0, n_random=100, perm=True)
+    # # print(traces.shape)
+    # with trange(len(noises)) as t:
+    #     for i in t:
+    #         noise = noises[i]
+    #         labels, traces = gen_am(batch_size, states_pair, q=q, noise=noise)
+    #         # labels, traces = gen_am_absdiff(batch_size, states_pair, q=q, noise=noise)
+    #         clf = lda()
+    #         clf.fit(traces, labels)
+    #         scores = []
+    #         if noise > 1:
+    #             n_query = 101
+    #         else:
+    #             n_query = 51
+    #         for n in range(1, n_query, 3):
+    #             acc = 0
+    #             for i in range(1000):
+    #                 t.set_description(f'Process {noise}, n querry: {n}, time {i}')
+    #                 correct_state = np.random.randint(0, 2)
+    #                 a_labels, a_traces = gen_am(n, states_pair, select_state=correct_state, q=q, noise=noise)
+    #                 # a_labels, a_traces = gen_am_absdiff(n, states_pair, select_state=correct_state, q=q, noise=noise)
+    #                 preds_proba = clf.predict_log_proba(a_traces)
+    #                 pred_state = np.argmax(np.sum(preds_proba, axis=0))
+    #                 if pred_state == correct_state:
+    #                     acc += 1
+    #             scores.append(acc/1000)
+    #         plt.plot(np.arange(1, n_query, 3), scores, label=f"{noise}")
+    # plt.legend()
+    # plt.xlabel("No. queries")
+    # plt.ylabel("success rate")
     # plt.show()
 
+    #unprotected
+    # st0 = np.zeros((dim, 1))
+    # st1 = np.zeros((dim, 1))
+    # st1[-1] = 1
+    # # st0 = np.random.randint(-2, 3, (dim, 1))
+    # # st1 = np.random.randint(-2, 3, (dim, 1))
+    # states_pair = np.hstack((st0, st1)).T
+    # labels, traces = unprotected_gen(batch_size, states_pair, noise=0.1)
+    # clf = lda()
+    # clf.fit(traces, labels)
+    # a_labels, a_traces = unprotected_gen(1000, states_pair, noise=0.1)
+    # print(clf.score(a_traces, a_labels))
 
+    comf = "prod"
+    n_order = 3
+    batch_size = 50000
+    # n_attack = 1000
+    dim = 256
+    q = 11
+    n_random = 1000
+    noises = [0.1]
+    n_query = 400
+    st0 = np.random.randint(-2, 3, (dim, 1))
+    st1 = np.random.randint(-2, 3, (dim, 1))
+    states_pair = np.hstack((st0, st1)).T
+    labels, traces = gen_am_ho(batch_size, states_pair, n_order=n_order, select_state=None, q=q, noise=1, comf=comf)
+    # labels, traces = gen_am(batch_size, states_pair, select_state=None, q=3329, noise=0, n_random=0, perm=None)
+    clf = lda()
+    clf.fit(traces, labels)
+    a_labels, a_traces = gen_am_ho(1000, states_pair, n_order=n_order, select_state=None, q=q, noise=1, comf=comf)
+    # a_labels, a_traces = gen_am(1000, states_pair, select_state=None, q=3329, noise=0.1, n_random=0, perm=None)
+    print(clf.score(a_traces, a_labels))
 
 
 

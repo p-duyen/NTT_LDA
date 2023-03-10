@@ -176,7 +176,7 @@ def uni_test():
 def proba_test(states_pair, comf):
     batch_size = 100000
     dim = 256
-    noise = 30
+    noise = 0.1
     q = 3329
     labels, traces = gen_am_ho(batch_size, states_pair, n_order=2, select_state=None, q=q, noise=noise, comf=comf)
     # means = comp_mean_vectors(traces, labels)
@@ -214,15 +214,17 @@ def proba_test(states_pair, comf):
     ax.scatter(x1, y1, color="purple", s=5, alpha=0.5)
     ax.scatter(m0, [0.0025], color="green", marker="x",s=100, label="mean cls0")
     ax.scatter(m1, [-0.005], color="purple", marker="x",s=100, label="mean cls1")
+    axs[i].text(np.round(m0, 2)[0][0], 0.004, f"{np.round(m0, 3)[0][0]}", color="green")
+    axs[i].text(np.round(m1, 2)[0][0], -0.004, f"{np.round(m1, 3)[0][0]}", color="purple")
     # #
     # #
     # print(np.round(m0, 2)[0][0])
-    [xmin, xmax] = ax.get_xlim()
-    print( ax.get_xlim()[0],  ax.get_xlim()[1])
-    ticks = [round( ax.get_xlim()[0], 3), np.round(m0, 3)[0][0], 0, np.round(m1, 3)[0][0],round( ax.get_xlim()[1], 3)]
-    ax.set_xticks(ticks)
-    ax.get_xticklabels()[0].set_color("green")
-    ax.get_xticklabels()[1].set_color("purple")
+    # [xmin, xmax] = ax.get_xlim()
+    # print( ax.get_xlim()[0],  ax.get_xlim()[1])
+    # ticks = [round( ax.get_xlim()[0], 3), np.round(m0, 3)[0][0], 0, np.round(m1, 3)[0][0],round( ax.get_xlim()[1], 3)]
+    # ax.set_xticks(ticks)
+    # ax.get_xticklabels()[0].set_color("green")
+    # ax.get_xticklabels()[1].set_color("purple")
     plt.legend()
     plt.title(f"{comf}_score: {clf.score(a_traces, a_labels)}")
     plt.show()
@@ -231,7 +233,7 @@ def proba_test(states_pair, comf):
 def f_compare(comf, states_pair):
     batch_size = 100000
     dim = 256
-    noise = 30
+    noise = 0.1
     q = 3329
     # st0 = np.random.randint(-2, 3, (dim, 1))
     # st1 = np.random.randint(-2, 3, (dim, 1))
@@ -287,8 +289,8 @@ def f_compare(comf, states_pair):
 if __name__ == '__main__':
     # uni_test()
     dim = 256
-    st0 = np.random.randint(-2, 3, (dim, 1))
-    st1 = np.random.randint(-2, 3, (dim, 1))
+    st0 = np.random.randint(-1, 1, (dim, 1))
+    st1 = np.random.randint(-1, 1, (dim, 1))
     states_pair = np.hstack((st0, st1)).T
     #
     # comf = ["prod", "norm_prod", "abs_diff"]
