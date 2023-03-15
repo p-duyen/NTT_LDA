@@ -148,7 +148,7 @@ def histo_2D():
     noise = 0.2
     # s_range = [0, 1, 3, 7, 5]
     s_range = [-2, -1, 0, 1, 2]
-    q = 9
+    q = 3329
 
     fig, axs = plt.subplots(1, len(s_range), sharey=True)
     # fig.suptitle(f"q = {q}, noise = {noise}, combi_f = {comf}", fontsize=12)
@@ -173,6 +173,35 @@ def histo_2D():
         # elem_s = st[0]
         ax.set_title(f"s={st[0]}_{elem_s}_{bin(elem_s)[2:]}_{HW(elem_s)}")
     plt.show()
+def histo_2D_():
+    n_samples = 500000
+    noise = 0.2
+    s_range = [-2, -1, 0, 1, 2]
+    q = 3329
+    ops = ["add", "sub"]
+    ops_des = ["s1 = (s-s0)%q", "s1 = (s+s0')%q"]
+    x_a = ["s0", "s0'"]
+
+    fig, axs = plt.subplots(1, len(s_range), sharey=True)
+    fig.suptitle(f"q = {q}={q:012b}", fontsize=12)
+    fig.subplots_adjust(top=1.5)
+
+
+    for (s, ax) in zip(s_range, axs):
+        st = np.array([s])
+        y, l = am_gen_(n_samples, st, q=q, noise=noise, comf=None)
+
+        l0 = l[:, 0]
+        l1 = l[:, 1]
+        ax.hist2d(l0, l1, bins=100, density=True)
+        ax.set(aspect='equal', adjustable='box')
+        elem_s = (st[0]+q)%q
+        ax.set_xlabel("s0")
+        ax.set_ylabel("s1")
+        # print(f"s: {st}, elem_s: {elem_s}")
+        # elem_s = st[0]
+        ax.set_title(f"s={st[0]}_{elem_s}_{bin(elem_s)[2:]}_{HW(elem_s)}")
+    plt.show()
 
 
 
@@ -185,11 +214,11 @@ def histo_2D_op(s_range, q, l_model):
     fs_subfig = 8
     fs_label = 8
     fig = plt.figure(constrained_layout=True)
-    fig.suptitle(f"q = {q} leakage: {l_model}")
+    fig.suptitle(f"q = {q}_{q:03b} leakage: {l_model}")
 
     subfigs = fig.subfigures(nrows=len(ops), ncols=1)
     for row, subfig in enumerate(subfigs):
-        subfig.suptitle(f"{ops_des[row]}", y=0.9)
+        subfig.suptitle(f"{ops_des[row]}", y=0.98)
         axs = subfig.subplots(nrows=1, ncols=s_range.shape[0], sharey=True)
 
     # fig.suptitle(f"q = {q}, noise = {noise}, combi_f = {comf}", fontsize=12)
@@ -206,11 +235,11 @@ def histo_2D_op(s_range, q, l_model):
             # ticks = np.arange(q)
             # ax.set_xticks(ticks)
             ax.set(aspect='equal', adjustable='box')
-            # elem_s = (st[0]+q)%q
+            elem_s = (st[0]+q)%q
 
             # print(f"s: {st}, elem_s: {elem_s}")
             # elem_s = st[0]
-            ax.set_title(f"s={st[0]}_HW={HW(st)[0]}", fontsize=fs_label)
+            ax.set_title(f"s={st[0]}={elem_s:04b}_{HW(st)}", fontsize=fs_label)
     # plt.subplots_adjust(wspace=0, hspace=0)
     # plt.subplots_adjust(pad=-5.0)
     plt.show()
@@ -222,9 +251,9 @@ def histo_2D_op_tightlayout(s_range, q, l_model, n_cols, op=0):
     ops_des = ["s1 = (s-s0)%q", "s1 = (s+s0')%q"]
     x_a = ["s0", "s0'"]
     fs_subfig = 8
-    fs_label = 12
+    fs_label = 8
     fig = plt.figure(constrained_layout=True)
-    fig.suptitle(f"q = {q} leakage: {l_model} {ops_des[op]}", fontsize=16)
+    fig.suptitle(f"q = {q}={q:08b} leakage: {l_model} {ops_des[op]}", fontsize=12)
 
     last_row = 0 if q%n_cols==0 else 1
     nrows = q//n_cols + last_row
@@ -247,7 +276,7 @@ def histo_2D_op_tightlayout(s_range, q, l_model, n_cols, op=0):
                 ax.hist2d(l0, l1, bins=100, density=True)
                 ax.set(aspect='equal', adjustable='box')
                 elem_s = (st[0]+q)%q
-                ax.set_title(f"s={st[0]}_HW={HW(st[0])}", fontsize=fs_label)
+                ax.set_title(f"s={st[0]}={elem_s:012b}_HW={HW(st)}", fontsize=fs_label)
         else:
             axs = subfig.subplots(nrows=1, ncols=n_cols if q%n_cols == 0 else q%n_cols, sharey=True)
             for (s, ax) in zip(s_range[row*n_cols:], axs):
@@ -261,8 +290,63 @@ def histo_2D_op_tightlayout(s_range, q, l_model, n_cols, op=0):
                 ax.hist2d(l0, l1, bins=100, density=True)
                 ax.set(aspect='equal', adjustable='box')
                 elem_s = (st[0]+q)%q
-                ax.set_title(f"s={st[0]}_HW={HW(st[0])}", fontsize=fs_label)
+                ax.set_title(f"s={st[0]}={elem_s:012b}_HW={HW(st)}", fontsize=fs_label)
     plt.show()
+
+def hist2d_Q(s_range, q, l_model, n_cols, op=0):
+    n_samples = 500000
+    noise = 0.2
+
+    ops = ["add", "sub"]
+    ops_des = ["s1 = (s-s0)%q", "s1 = (s+s0')%q"]
+    x_a = ["s0", "s0'"]
+    fs_subfig = 8
+    fs_label = 8
+
+    last_row = 0 if q%n_cols==0 else 1
+    nrows = q//n_cols + last_row
+    sub_fig_rows = 3
+    sub_figs = nrows//4 + 1
+    print(f"NUMBER of fig: {sub_figs} row in each fig: {sub_fig_rows}")
+    for i in range(sub_figs):
+        print(f"Fig: {i}")
+        fig = plt.figure(constrained_layout=True)
+        fig.suptitle(f"q = {q}={q:08b} leakage: {l_model} {ops_des[op]}", fontsize=12)
+        subfigs = fig.subfigures(nrows=sub_fig_rows, ncols=1)
+        for sub_row, subfig in enumerate(subfigs):
+            row = i*sub_fig_rows + sub_row
+            print(f"row: {row}")
+            if row < nrows - 1:
+                axs = subfig.subplots(nrows=1, ncols=n_cols, sharey=True)
+                for (s, ax) in zip(s_range[row*n_cols:(row+1)*n_cols ], axs):
+                    st = np.array([s])
+                    y, l = am_gen_(n_samples, st, l_model=l_model, op=ops[op], q=q, noise=noise, comf=None)
+                    l0 = l[:, 0]
+                    l1 = l[:, 1]
+                    ax.set_xlabel(f"{x_a[op]}", fontsize=fs_subfig)
+                    ax.set_ylabel("s1", fontsize=fs_subfig)
+                    ax.tick_params(axis='both', which='major', labelsize=8)
+                    ax.hist2d(l0, l1, bins=100, density=True)
+                    ax.set(aspect='equal', adjustable='box')
+                    elem_s = (st[0]+q)%q
+                    ax.set_title(f"s={st[0]}={elem_s:012b}_HW={HW(st)}", fontsize=fs_label)
+            else:
+                axs = subfig.subplots(nrows=1, ncols=n_cols if q%n_cols == 0 else q%n_cols, sharey=True)
+                for (s, ax) in zip(s_range[row*n_cols:], axs):
+                    st = np.array([s])
+                    y, l = am_gen_(n_samples, st, l_model=l_model, op=ops[op], q=q, noise=noise, comf=None)
+                    l0 = l[:, 0]
+                    l1 = l[:, 1]
+                    ax.set_xlabel(f"{x_a[op]}", fontsize=fs_subfig)
+                    ax.set_ylabel("s1", fontsize=fs_subfig)
+                    ax.tick_params(axis='both', which='major', labelsize=8)
+                    ax.hist2d(l0, l1, bins=100, density=True)
+                    ax.set(aspect='equal', adjustable='box')
+                    elem_s = (st[0]+q)%q
+                    ax.set_title(f"s={st[0]}={elem_s:012b}_HW={HW(st)}", fontsize=fs_label)
+        plt.savefig(f"dist/HW_3329_add_{i}.png")
+
+
 
 def histo_2d_overlap():
     n_samples = 500000
@@ -303,17 +387,23 @@ def histo_2d_overlap():
 if __name__ == '__main__':
     # comf=["prod", "norm_prod", "abs_diff"]
     # [dist_1d(f) for f in comf]
-    q = 7
+    q = 3329
 
     s_range = np.arange(q, dtype=np.int16)
-    l_model = "Full"
-    print(LSB(s_range))
-    for s in s_range:
-
-        s2 = (2*s)%q
-        print(f"s: {s}_{bin(s)[2:]}, s-1: {s2}_{bin(s2)[2:]}")
+    l_model = "HW"
+    # s_range = np.array([-2, -1, 0, 1, 2])
+    # print(f"                 q = {q}              ")
+    # print(LSB(s_range))
+    # s0_range = np.arange(q//2)
+    # for s in s_range:
+    #     print(f"s = {s}")
+    #     for s0 in s0_range:
+    #         s0_ = q - s0
+    #         s1 = (s-s0)%q
+    #         print(f"       s_1={s1:02d}={s1:06b}~{HW([s1])}, s_0={s0}={s0:06b}~{HW([s0])}, s_0'={s0_:02d}={s0_:06b}~{HW([s0_])}")
 
     # histo_2D_op(s_range, q, l_model)
     # histo_2D_op_tightlayout(s_range, q, l_model, n_cols=8, op=0)
+    hist2d_Q(s_range, q, l_model, n_cols=6, op=1)
     # histo_2D()
     # histo_2d_overlap()

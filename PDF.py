@@ -25,7 +25,7 @@ def pdf_l_given_s(s, l, x_range, var):
     for x in range(x_range):
         ms = (s-x)%x_range
         f_ += pdf_normal(l[:, 0], HW(x), var)*pdf_normal(l[:, 1], HW(ms), var)
-    f_ = f_/256
+    f_ = f_/x_range
     return f_
 
 
@@ -115,19 +115,30 @@ def distin_pairs():
     noise = 1
     dim = 256
     s_range = [-2, -1, 0, 1, 2]
-    for i in range(5):
-        print(i)
-        s0 = np.random.randint(-2, 3, (dim, ))
-        s1 = np.random.randint(-2, 3, (dim, ))
-        r = np.random.randint(0, q, (dim, ))
-        ms = (s0-r)%q
-        l0 = HW(r) + np.random.normal(0, noise, (dim, ))
-        l1 = HW(ms) + np.random.normal(0, noise, (dim, ))
+    sr = 0
+    n_query = 5
+    for i in range(n_query):
+        print('================',i,'====================')
+        coin_flip = np.random.randint(0, 1, (1))
+        s0 = np.random.randint(-2, 3, (dim, 1))
+        s1 = np.random.randint(-2, 3, (dim, 1))
+        states_pair = np.hstack((s0, s1)).T
+        # print(states_pair, states_pair.shape)
+        chosen_state = states_pair[coin_flip]
+        # print(chosen_state)
+        r = np.random.randint(0, q, (dim, 1))
+        ms = (chosen_state-r)%q
+        l0 = HW(r) + np.random.normal(0, noise, (dim, 1))
+        l1 = HW(ms) + np.random.normal(0, noise, (dim, 1))
         l = np.column_stack((l0, l1))
         y = np.column_stack((r, ms))
-        proba_pair = [multi_dim_proba(s, l, dim, s_range, q, noise) for s in [s0, s1]]
+        proba_pair = [multi_dim_proba(s, l, dim, s_range, q, noise) for s in states_pair]
         proba_pair = np.array(proba_pair)
-        print(np.argmax(proba_pair))
+        pred_state = np.argmax(proba_pair)
+        if chosen_state == pred_state:
+            sr += 1
+        print(f"chosen_state: {chosen_state}, pred_state: {pred_state}")
+    sr = sr/n_query
 
 
 
@@ -154,6 +165,10 @@ if __name__ == '__main__':
     # partial_test()
     # multi_test()
     distin_pairs()
+    # x_range = np.arange(3329)
+    # hw_x = HW(x_range)
+    # unique_hw = np.unique(hw_x, return_counts=True)
+    # print(unique_hw)
 
 
     # x = np.array([0, 1, 2])
